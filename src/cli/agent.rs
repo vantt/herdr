@@ -296,6 +296,7 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
         .position(|arg| arg == "--")
         .unwrap_or(args.len());
     let mut kind = None;
+    let mut executable = None;
     let mut pane_id = None;
     let mut timeout_ms = None;
     let mut index = 1;
@@ -307,6 +308,14 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
                     return Ok(2);
                 };
                 kind = Some(value.clone());
+                index += 2;
+            }
+            "--executable" => {
+                let Some(value) = args.get(index + 1).filter(|_| index + 1 < separator) else {
+                    eprintln!("missing value for --executable");
+                    return Ok(2);
+                };
+                executable = Some(value.clone());
                 index += 2;
             }
             "--pane" => {
@@ -375,6 +384,7 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
                 name: name.clone(),
                 kind: kind.clone(),
                 pane_id: pane_id.clone(),
+                executable: executable.clone(),
                 args: agent_args.clone(),
                 timeout_ms,
             }),
