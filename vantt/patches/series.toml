@@ -1,0 +1,12 @@
+# Herdr Fork Patch Series
+# Defines the ordered list of patches maintained on top of upstream releases.
+
+[[patches]]
+id = "agent-start-executable"
+name = "feat: add --executable flag to agent start for custom launchers"
+patch_file = "0001-agent-start-executable.patch"
+metadata_file = "agent-start-executable.md"
+consumer = "forgentX dispatch"
+upstream_status = "unsubmitted"
+upstream_pr = ""
+test_command = "cargo test --bin herdr agent_start_missing_executable_value_fails"
