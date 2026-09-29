@@ -51,7 +51,70 @@ python3 vantt/scripts/install.py --rollback
 
 ---
 
-## 2. Quản lý Patch Series
+## 2. Hướng dẫn Build & Cài đặt bản Tag hiện tại (Current Tag)
+
+### Cách A: Build và Cài đặt trực tiếp trên máy Local
+
+#### 1. Build binary release cho tag hiện tại (vd: `v0.9.1`)
+```bash
+# Chạy catchup chỉ định rõ tag cần build:
+python3 vantt/scripts/catchup.py --ref v0.9.1
+```
+*(Nếu nhánh `vantt/v0.9.1` đã được build và verify trước đó, lệnh sẽ nhận diện ngay trong 1s mà không build lại)*.
+
+#### 2. Cài đặt vào `~/.local/bin/herdr`
+```bash
+python3 vantt/scripts/install.py
+```
+Lệnh trên sẽ:
+- Kiểm tra xem binary trong `target/release/herdr` có hỗ trợ `--executable` không.
+- Tạo bản sao lưu an toàn tại `~/.local/bin/herdr.bak-<timestamp>`.
+- Copy binary mới vào vị trí.
+
+#### 3. Kiểm tra tính năng sau khi cài
+```bash
+# Kiểm tra phiên bản (kèm nhận dạng fork vantt)
+herdr --version
+# Kết quả mong đợi: herdr 0.9.1-vantt.1
+
+# Kiểm tra cờ --executable
+herdr agent start --help | grep -C 1 -- '--executable'
+```
+
+---
+
+### Cách B: Tận dụng GitHub CI để Build trên Git (Không tốn CPU máy)
+
+#### herdr đã có sẵn CI chưa?
+- **Có sẵn**: herdr upstream đã có bộ CI rất mạnh trong `.github/workflows/`:
+  - `ci.yml`: Chạy lint, test trên Linux, macOS, Windows.
+  - `build-artifacts-manual.yml`: Workflow chạy theo yêu cầu (`workflow_dispatch`), có sẵn cấu hình cross-compile cho `linux (x86_64, aarch64)`, `macos`, `windows`.
+  - `release.yml`: Upstream có workflow release, nhưng chặn điều kiện chỉ chạy trên repo gốc `herdrdev/herdr`.
+
+#### Cách dùng CI có sẵn để build trên GitHub rồi tải về cài:
+1. **Push nhánh release lên GitHub**:
+   ```bash
+   git push origin vantt/v0.9.1
+   ```
+2. **Kích hoạt CI build**:
+   - Truy cập vào: `https://github.com/vantt/herdr/actions/workflows/build-artifacts-manual.yml`
+   - Bấm **Run workflow** -> Chọn branch `vantt/v0.9.1` -> Chọn build group `linux` -> Bấm Run.
+   - Hoặc chạy qua GitHub CLI:
+     ```bash
+     gh workflow run build-artifacts-manual.yml --ref vantt/v0.9.1 -f build_group=linux
+     ```
+3. **Tải binary về máy và cài đặt**:
+   Sau khi workflow chạy xong (~3-5 phút), tải artifact `herdr-linux-x86_64` về giải nén vào `target/release/` hoặc trực tiếp vào `~/.local/bin/herdr`:
+   ```bash
+   gh run download -n herdr-linux-x86_64 -D /tmp/herdr-bin
+   chmod +x /tmp/herdr-bin/herdr
+   # Hoặc dùng script install.py với đường dẫn tùy chỉnh
+   python3 vantt/scripts/install.py
+   ```
+
+---
+
+## 3. Quản lý Patch Series
 
 Mọi patch tính năng của fork được khai báo tường minh tại `vantt/patches/series.toml`:
 
