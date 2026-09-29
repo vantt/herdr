@@ -49,11 +49,37 @@ python3 vantt/scripts/install.py
 python3 vantt/scripts/install.py --rollback
 ```
 
+### Cài đặt siêu nhanh bằng 1 lệnh (Khuyên dùng)
+Nếu muốn tải và cài đặt ngay bản binary đã được GitHub CI build sẵn:
+```bash
+curl -fsSL https://raw.githubusercontent.com/vantt/herdr/master/vantt/install.sh | bash
+```
+Lệnh trên sẽ tự động:
+1. Tải bản release mới nhất từ GitHub Releases của `vantt/herdr`.
+2. Tạo bản sao lưu an toàn cho binary cũ tại `~/.local/bin/herdr.bak-<timestamp>`.
+3. Cài binary mới vào `~/.local/bin/herdr`.
+4. Kiểm tra phiên bản và cờ `--executable`.
+
 ---
 
 ## 2. Hướng dẫn Build & Cài đặt bản Tag hiện tại (Current Tag)
 
-### Cách A: Build và Cài đặt trực tiếp trên máy Local
+### Cách A: Cài đặt từ GitHub Release (Không tốn CPU máy)
+Chạy script cài đặt trực tiếp qua `curl`:
+```bash
+# Cài đặt bản mới nhất:
+curl -fsSL https://raw.githubusercontent.com/vantt/herdr/master/vantt/install.sh | bash
+
+# Hoặc cài đặt một bản cụ thể (ví dụ: v0.9.1-vantt.1):
+curl -fsSL https://raw.githubusercontent.com/vantt/herdr/master/vantt/install.sh | sh -s -- --version v0.9.1-vantt.1
+
+# Rollback về bản cũ:
+curl -fsSL https://raw.githubusercontent.com/vantt/herdr/master/vantt/install.sh | sh -s -- --rollback
+```
+
+---
+
+### Cách B: Build và Cài đặt trực tiếp trên máy Local
 
 #### 1. Build binary release cho tag hiện tại (vd: `v0.9.1`)
 ```bash
@@ -83,34 +109,14 @@ herdr agent start --help | grep -C 1 -- '--executable'
 
 ---
 
-### Cách B: Tận dụng GitHub CI để Build trên Git (Không tốn CPU máy)
+### Cách C: Cơ chế GitHub Action tự động Catchup & Release
 
-#### herdr đã có sẵn CI chưa?
-- **Có sẵn**: herdr upstream đã có bộ CI rất mạnh trong `.github/workflows/`:
-  - `ci.yml`: Chạy lint, test trên Linux, macOS, Windows.
-  - `build-artifacts-manual.yml`: Workflow chạy theo yêu cầu (`workflow_dispatch`), có sẵn cấu hình cross-compile cho `linux (x86_64, aarch64)`, `macos`, `windows`.
-  - `release.yml`: Upstream có workflow release, nhưng chặn điều kiện chỉ chạy trên repo gốc `herdrdev/herdr`.
-
-#### Cách dùng CI có sẵn để build trên GitHub rồi tải về cài:
-1. **Push nhánh release lên GitHub**:
-   ```bash
-   git push origin vantt/v0.9.1
-   ```
-2. **Kích hoạt CI build**:
-   - Truy cập vào: `https://github.com/vantt/herdr/actions/workflows/build-artifacts-manual.yml`
-   - Bấm **Run workflow** -> Chọn branch `vantt/v0.9.1` -> Chọn build group `linux` -> Bấm Run.
-   - Hoặc chạy qua GitHub CLI:
-     ```bash
-     gh workflow run build-artifacts-manual.yml --ref vantt/v0.9.1 -f build_group=linux
-     ```
-3. **Tải binary về máy và cài đặt**:
-   Sau khi workflow chạy xong (~3-5 phút), tải artifact `herdr-linux-x86_64` về giải nén vào `target/release/` hoặc trực tiếp vào `~/.local/bin/herdr`:
-   ```bash
-   gh run download -n herdr-linux-x86_64 -D /tmp/herdr-bin
-   chmod +x /tmp/herdr-bin/herdr
-   # Hoặc dùng script install.py với đường dẫn tùy chỉnh
-   python3 vantt/scripts/install.py
-   ```
+Repo đã được tích hợp workflow `[.github/workflows/fork-catchup-release.yml](.github/workflows/fork-catchup-release.yml)`:
+- **Tự động thăm dò (Polling)**: Chạy định kỳ mỗi 6 giờ (`cron: '0 0,6,12,18 * * *'`).
+- **Tự động áp patch & build**: Khi upstream có release tag mới, GitHub Actions tự động rẽ nhánh, áp patch series, build release binary và kiểm thử.
+- **Tự động xuất bản (Publish)**: Nếu test pass, Action tự động tạo GitHub Release (kèm file `herdr-linux-x86_64.tar.gz`).
+- **Cảnh báo conflict**: Nếu có conflict ở patch nào, Action tự động mở một GitHub Issue thông báo chi tiết để can thiệp.
+- **Kích hoạt bằng tay**: Anh có thể vào tab **Actions** -> **Fork Catchup and Release** -> Bấm **Run workflow** bất cứ khi nào muốn.
 
 ---
 

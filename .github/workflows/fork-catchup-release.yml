@@ -1,0 +1,148 @@
+name: Fork Catchup and Release
+
+on:
+  schedule:
+    # Run every 6 hours to check for new upstream releases
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: 'Specific upstream ref to catch up to (e.g. v0.9.1, leave empty for latest stable)'
+        required: false
+        default: ''
+      force_rebuild:
+        description: 'Force rebuild even if release branch already exists'
+        required: false
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*-vantt.*'
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  RUST_TOOLCHAIN_VERSION: 1.96.1
+
+jobs:
+  catchup-and-release:
+    if: github.repository == 'vantt/herdr'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+
+      - name: Install Zig
+        uses: vercel-labs/setup-zig@v1
+        with:
+          version: 0.16.0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/herdrdev/herdr.git 2>/dev/null || true
+          git fetch upstream --tags --quiet
+
+      - name: Run Catchup
+        id: catchup
+        env:
+          TARGET_REF: ${{ github.event.inputs.target_ref }}
+          FORCE_CLEAN: ${{ github.event.inputs.force_rebuild }}
+        run: |
+          ARGS=""
+          if [ -n "$TARGET_REF" ]; then
+            ARGS="$ARGS --ref $TARGET_REF"
+          fi
+          if [ "$FORCE_CLEAN" = "true" ]; then
+            ARGS="$ARGS --clean"
+          fi
+
+          echo "Running catchup runner: python3 vantt/scripts/catchup.py $ARGS"
+          if python3 vantt/scripts/catchup.py $ARGS; then
+            echo "catchup_status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "catchup_status=failure" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Determine built version and branch
+        if: steps.catchup.outputs.catchup_status == 'success'
+        id: info
+        run: |
+          BIN="target/release/herdr"
+          VER="$("$BIN" --version | awk '{print $2}')"
+          CURRENT_BRANCH="$(git branch --show-current)"
+          echo "Built version: $VER"
+          echo "Current branch: $CURRENT_BRANCH"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "branch=$CURRENT_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Push release branch to origin
+        if: steps.catchup.outputs.catchup_status == 'success'
+        run: |
+          BRANCH="${{ steps.info.outputs.branch }}"
+          echo "Pushing release branch $BRANCH to origin..."
+          git push origin "$BRANCH" --force
+
+      - name: Package Release Binary
+        if: steps.catchup.outputs.catchup_status == 'success'
+        run: |
+          mkdir -p dist
+          tar -czvf dist/herdr-linux-x86_64.tar.gz -C target/release herdr
+          cd dist
+          sha256sum herdr-linux-x86_64.tar.gz > herdr-linux-x86_64.tar.gz.sha256
+          cd ..
+
+      - name: Publish GitHub Release
+        if: steps.catchup.outputs.catchup_status == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.info.outputs.version }}"
+          echo "Publishing release $TAG on vantt/herdr..."
+          
+          # Create or update release
+          if gh release view "$TAG" --repo vantt/herdr >/dev/null 2>&1; then
+            echo "Release $TAG already exists, uploading new assets..."
+            gh release upload "$TAG" dist/* --repo vantt/herdr --clobber
+          else
+            gh release create "$TAG" \
+              dist/herdr-linux-x86_64.tar.gz \
+              dist/herdr-linux-x86_64.tar.gz.sha256 \
+              --repo vantt/herdr \
+              --title "Herdr Fork $TAG" \
+              --notes "Automated release of vantt/herdr fork ($TAG) with custom launcher support (--executable flag)." \
+              --latest
+          fi
+
+      - name: Report Conflict as Issue if Failed
+        if: failure() && steps.catchup.outputs.catchup_status == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="[Catchup Alert] Upstream release catchup encountered conflicts"
+          BODY="Automated catchup run failed. A patch in series.toml could not be applied cleanly against the latest upstream release. Please inspect the workflow run logs and resolve conflicts."
+          
+          # Check if an open issue with same title already exists
+          EXISTING="$(gh issue list --repo vantt/herdr --search "$TITLE" --state open --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --repo vantt/herdr --title "$TITLE" --body "$BODY"
+          else
+            echo "An open issue #$EXISTING already exists for this conflict."
+          fi

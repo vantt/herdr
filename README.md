@@ -3,6 +3,11 @@
 > [!NOTE]
 > **Fork `vantt/herdr`** — Bản fork của [herdrdev/herdr](https://github.com/herdrdev/herdr), duy trì tính năng riêng (`--executable` flag cho `herdr agent start`) phục vụ custom launcher của `forgentX`.
 > 
+> **Cài đặt nhanh bản fork mới nhất bằng 1 lệnh:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/vantt/herdr/master/vantt/install.sh | bash
+> ```
+> 
 > **Cách chạy catchup lên release mới nhất của upstream:**
 > - **Lệnh CLI**:
 >   ```bash
