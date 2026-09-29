@@ -40,8 +40,10 @@ def rollback():
     latest = backups[0]
     print(f"Latest backup: {latest}")
     print(f"Restoring to {DEFAULT_DEST}...")
-    shutil.copy2(latest, DEFAULT_DEST)
-    os.chmod(DEFAULT_DEST, 0o755)
+    tmp_dest = DEFAULT_DEST.with_suffix(f".tmp.{os.getpid()}")
+    shutil.copy2(latest, tmp_dest)
+    os.chmod(tmp_dest, 0o755)
+    os.replace(tmp_dest, DEFAULT_DEST)
 
     ver_res = run_cmd([str(DEFAULT_DEST), "--version"], check=False)
     print(f"Rolled back successfully to version: {ver_res.stdout.strip()}")
@@ -79,11 +81,13 @@ def install(src_path, dest_path, dry_run=False):
         print(f"Creating backup of existing binary at: {backup_path}")
         shutil.copy2(dest, backup_path)
 
-    # Install new binary
+    # Install new binary atomically
     dest.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Copying {src} -> {dest}...")
-    shutil.copy2(src, dest)
-    os.chmod(dest, 0o755)
+    print(f"Copying {src} -> {dest} (atomic)...")
+    tmp_dest = dest.with_suffix(f".tmp.{os.getpid()}")
+    shutil.copy2(src, tmp_dest)
+    os.chmod(tmp_dest, 0o755)
+    os.replace(tmp_dest, dest)
 
     # Verify installed binary
     installed_ver = run_cmd([str(dest), "--version"]).stdout.strip()

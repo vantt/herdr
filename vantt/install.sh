@@ -5,7 +5,14 @@ set -eu
 # Downloads the latest verified binary release from GitHub and installs safely.
 
 REPO="vantt/herdr"
-INSTALL_DIR="${HERDR_INSTALL_DIR:-$HOME/.local/bin}"
+INSTALL_DIR="${HERDR_INSTALL_DIR:-}"
+if [ -z "$INSTALL_DIR" ]; then
+    if EXISTING_HERDR="$(command -v herdr 2>/dev/null)" && [ -n "$EXISTING_HERDR" ]; then
+        INSTALL_DIR="$(dirname "$EXISTING_HERDR")"
+    else
+        INSTALL_DIR="$HOME/.local/bin"
+    fi
+fi
 TARGET="$INSTALL_DIR/herdr"
 
 usage() {
@@ -64,8 +71,9 @@ if [ "$ROLLBACK" -eq 1 ]; then
         err "No backup found matching $TARGET.bak-*"
     fi
     log "Restoring from $LATEST_BAK -> $TARGET"
-    cp "$LATEST_BAK" "$TARGET"
-    chmod 755 "$TARGET"
+    cp "$LATEST_BAK" "$TARGET.tmp.$$"
+    chmod 755 "$TARGET.tmp.$$"
+    mv -f "$TARGET.tmp.$$" "$TARGET"
     log "Rollback successful. Version: $("$TARGET" --version)"
     exit 0
 fi
@@ -145,8 +153,9 @@ if [ -f "$TARGET" ]; then
 fi
 
 log "Installing binary to $TARGET..."
-cp "$TMPDIR/herdr" "$TARGET"
-chmod 755 "$TARGET"
+cp "$TMPDIR/herdr" "$TARGET.tmp.$$"
+chmod 755 "$TARGET.tmp.$$"
+mv -f "$TARGET.tmp.$$" "$TARGET"
 
 # 5. Verify installation
 log "Verifying installed binary..."
