@@ -418,10 +418,6 @@ fn agent_command() -> Command {
                         .help("Existing pane at an interactive shell prompt"),
                 )
                 .arg(
-                    option("executable", "PATH")
-                        .help("Custom executable path to launch instead of canonical binary"),
-                )
-                .arg(
                     option("timeout", "MS")
                         .help("Wait for interactive readiness (default: 30000; max: 300000)"),
                 )
