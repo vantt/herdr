@@ -286,13 +286,12 @@ class CatchupRunner:
         print(f"Checking out clean release branch '{release_branch}' from {target_sha[:10]}...")
         run_cmd(["git", "checkout", "-B", release_branch, target_sha])
 
-        # Restore vantt and skills if missing on target branch
-        if not VANTT_DIR.exists():
-            shutil.copytree(temp_backup / "vantt", VANTT_DIR)
+        # Restore vantt and skills if missing or partial on target branch
+        shutil.copytree(temp_backup / "vantt", VANTT_DIR, dirs_exist_ok=True)
         skills_dest = REPO_ROOT / ".agents" / "skills" / "herdr-catchup"
-        if not skills_dest.exists():
+        if (temp_backup / "herdr-catchup").exists():
             skills_dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(temp_backup / "herdr-catchup", skills_dest)
+            shutil.copytree(temp_backup / "herdr-catchup", skills_dest, dirs_exist_ok=True)
 
         # Commit maintenance scripts on branch if not already committed
         status_res = run_cmd(["git", "status", "--porcelain", "vantt", ".agents/skills/herdr-catchup"])
