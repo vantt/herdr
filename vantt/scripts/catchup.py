@@ -272,9 +272,33 @@ class CatchupRunner:
                     self.report["tests_passed"] = True
                     return self.report
 
+        # Backup vantt and skills in temp dir so git checkout cannot remove them
+        temp_backup = Path("/tmp/herdr_catchup_backup")
+        if temp_backup.exists():
+            shutil.rmtree(temp_backup)
+        temp_backup.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(VANTT_DIR, temp_backup / "vantt")
+        skills_src = REPO_ROOT / ".agents" / "skills" / "herdr-catchup"
+        if skills_src.exists():
+            shutil.copytree(skills_src, temp_backup / "herdr-catchup")
+
         # Create or reset release branch from target ref
         print(f"Checking out clean release branch '{release_branch}' from {target_sha[:10]}...")
         run_cmd(["git", "checkout", "-B", release_branch, target_sha])
+
+        # Restore vantt and skills if missing on target branch
+        if not VANTT_DIR.exists():
+            shutil.copytree(temp_backup / "vantt", VANTT_DIR)
+        skills_dest = REPO_ROOT / ".agents" / "skills" / "herdr-catchup"
+        if not skills_dest.exists():
+            skills_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(temp_backup / "herdr-catchup", skills_dest)
+
+        # Commit maintenance scripts on branch if not already committed
+        status_res = run_cmd(["git", "status", "--porcelain", "vantt", ".agents/skills/herdr-catchup"])
+        if status_res.stdout.strip():
+            run_cmd(["git", "add", "vantt", ".agents/skills/herdr-catchup"])
+            run_cmd(["git", "commit", "-m", "chore(vantt): include fork maintenance scripts and series metadata"])
 
         # Apply patches in series
         for idx, patch in enumerate(patches):
