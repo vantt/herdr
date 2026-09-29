@@ -945,7 +945,7 @@ fn print_agent_help() {
     eprintln!("  herdr agent wait <target> [--until STATUS]... [--timeout MS]");
     eprintln!("  herdr agent attach <target> [--takeover]");
     eprintln!(
-        "  herdr agent start <name> --kind KIND --pane ID [--timeout MS] [-- <agent-args...>]"
+        "  herdr agent start <name> --kind KIND --pane ID [--executable PATH] [--timeout MS] [-- <agent-args...>]"
     );
     eprintln!("  herdr agent explain <target> [--json|--format text|json] [--verbose]");
     eprintln!(
@@ -961,3 +961,24 @@ fn parse_timeout(value: &str) -> Result<u64, i32> {
         2
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_start_missing_executable_value_fails() {
+        let args = vec![
+            "start".into(),
+            "worker".into(),
+            "--kind".into(),
+            "claude".into(),
+            "--pane".into(),
+            "1".into(),
+            "--executable".into(),
+        ];
+        let exit_code = agent_start(&args).unwrap();
+        assert_eq!(exit_code, 2);
+    }
+}
+
