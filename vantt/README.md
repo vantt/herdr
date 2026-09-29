@@ -56,7 +56,7 @@ Mọi patch tính năng của fork được khai báo tường minh tại `vantt
 id = "agent-start-executable"
 name = "feat: add --executable flag to agent start for custom launchers"
 patch_file = "0001-agent-start-executable.patch"
-metadata_file = "agent-start-executable.md"
+metadata_file = "0001-agent-start-executable.spec.md"
 consumer = "forgentX dispatch"
 upstream_status = "unsubmitted"  # unsubmitted | pr_opened | merged
 upstream_pr = ""
@@ -69,7 +69,7 @@ test_command = "cargo test --bin herdr agent_start_missing_executable_value_fail
    ```bash
    git format-patch -1 <commit-hash> -o vantt/patches/
    ```
-3. Tạo file tài liệu bất biến `vantt/patches/<tên-patch>.md` (ghi rõ mục đích, consumer, các bất biến không được vi phạm khi conflict).
+3. Tạo file tài liệu đặc tả & bất biến `vantt/patches/<số>-<tên-patch>.spec.md` (ghi rõ mục đích, consumer, các bất biến không được vi phạm khi conflict).
 4. Thêm một block `[[patches]]` vào cuối `vantt/patches/series.toml`.
 5. Xong! Lần catchup tiếp theo sẽ tự động áp patch này theo thứ tự.
 

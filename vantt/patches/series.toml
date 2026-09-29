@@ -5,7 +5,7 @@
 id = "agent-start-executable"
 name = "feat: add --executable flag to agent start for custom launchers"
 patch_file = "0001-agent-start-executable.patch"
-metadata_file = "agent-start-executable.md"
+metadata_file = "0001-agent-start-executable.spec.md"
 consumer = "forgentX dispatch"
 upstream_status = "unsubmitted"
 upstream_pr = ""
