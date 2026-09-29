@@ -11,6 +11,10 @@ Chỉ cần chạy 1 lệnh:
 ```bash
 python3 vantt/scripts/catchup.py
 ```
+
+Hoặc gửi prompt cho AI Agent (có tích hợp skill `herdr-catchup`):
+> *"Hãy chạy catchup lên release mới nhất của upstream herdr và kiểm tra lại toàn bộ patch series."*
+
 Lệnh trên sẽ:
 1. Tự động fetch `upstream` và tìm tag stable mới nhất (dạng `v*`, vd: `v0.9.1`).
 2. Tạo nhánh release riêng `vantt/<tag>` (vd: `vantt/v0.9.1`).
@@ -56,7 +60,7 @@ Mọi patch tính năng của fork được khai báo tường minh tại `vantt
 id = "agent-start-executable"
 name = "feat: add --executable flag to agent start for custom launchers"
 patch_file = "0001-agent-start-executable.patch"
-metadata_file = "0001-agent-start-executable.spec.md"
+metadata_file = "0001-agent-start-executable-spec.md"
 consumer = "forgentX dispatch"
 upstream_status = "unsubmitted"  # unsubmitted | pr_opened | merged
 upstream_pr = ""

@@ -1,5 +1,17 @@
 # herdr
 
+> [!NOTE]
+> **Fork `vantt/herdr`** — Bản fork của [herdrdev/herdr](https://github.com/herdrdev/herdr), duy trì tính năng riêng (`--executable` flag cho `herdr agent start`) phục vụ custom launcher của `forgentX`.
+> 
+> **Cách chạy catchup lên release mới nhất của upstream:**
+> - **Lệnh CLI**:
+>   ```bash
+>   python3 vantt/scripts/catchup.py
+>   ```
+> - **Prompt cho AI Agent**:
+>   > *"Hãy chạy catchup lên release mới nhất của upstream herdr và kiểm tra lại toàn bộ patch series."*
+> 
+> Xem toàn bộ tài liệu vận hành, quản lý patch, cài đặt và rollback tại: [vantt/README.md](vantt/README.md).
 
 <p align="center">
   <img src="assets/logo.png" alt="herdr" width="100" />

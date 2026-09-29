@@ -42,7 +42,7 @@ python3 vantt/scripts/catchup.py --ref upstream/master
 If a patch encounters a merge conflict, `catchup.py` halts, leaves the conflicted working tree intact, and saves `.catchup_state.json`.
 
 To resolve:
-1. Read the invariant guide referenced in `vantt/patches/<patch-id>.spec.md`.
+1. Read the invariant guide referenced in `vantt/patches/<patch-id>-spec.md` (or `metadata_file` in `series.toml`).
 2. Inspect conflicted files: `git diff --name-only --diff-filter=U`.
 3. Resolve conflicts according to the stated invariants (do not alter semantics).
 4. Stage resolved files: `git add <files>`.
