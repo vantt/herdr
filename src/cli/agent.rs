@@ -296,6 +296,7 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
         .position(|arg| arg == "--")
         .unwrap_or(args.len());
     let mut kind = None;
+    let mut executable = None;
     let mut pane_id = None;
     let mut timeout_ms = None;
     let mut index = 1;
@@ -307,6 +308,14 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
                     return Ok(2);
                 };
                 kind = Some(value.clone());
+                index += 2;
+            }
+            "--executable" => {
+                let Some(value) = args.get(index + 1).filter(|_| index + 1 < separator) else {
+                    eprintln!("missing value for --executable");
+                    return Ok(2);
+                };
+                executable = Some(value.clone());
                 index += 2;
             }
             "--pane" => {
@@ -375,6 +384,7 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
                 name: name.clone(),
                 kind: kind.clone(),
                 pane_id: pane_id.clone(),
+                executable: executable.clone(),
                 args: agent_args.clone(),
                 timeout_ms,
             }),
@@ -941,7 +951,7 @@ fn print_agent_help() {
     eprintln!("  herdr agent wait <target> [--until STATUS]... [--timeout MS]");
     eprintln!("  herdr agent attach <target> [--takeover]");
     eprintln!(
-        "  herdr agent start <name> --kind KIND --pane ID [--timeout MS] [-- <agent-args...>]"
+        "  herdr agent start <name> --kind KIND --pane ID [--executable PATH] [--timeout MS] [-- <agent-args...>]"
     );
     eprintln!("  herdr agent explain <target> [--json|--format text|json] [--verbose]");
     eprintln!(
@@ -957,3 +967,24 @@ fn parse_timeout(value: &str) -> Result<u64, i32> {
         2
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_start_missing_executable_value_fails() {
+        let args = vec![
+            "start".into(),
+            "worker".into(),
+            "--kind".into(),
+            "claude".into(),
+            "--pane".into(),
+            "1".into(),
+            "--executable".into(),
+        ];
+        let exit_code = agent_start(&args).unwrap();
+        assert_eq!(exit_code, 2);
+    }
+}
+
