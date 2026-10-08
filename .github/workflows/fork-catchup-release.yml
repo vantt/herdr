@@ -93,6 +93,17 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "branch=$CURRENT_BRANCH" >> "$GITHUB_OUTPUT"
 
+      - name: Drop upstream workflows from release branch
+        if: steps.catchup.outputs.catchup_status == 'success'
+        run: |
+          # GITHUB_TOKEN cannot create or update files under .github/workflows,
+          # and the branch inherits upstream's. The binary is already built, so
+          # the release branch does not need them.
+          if [ -d .github/workflows ]; then
+            git rm -r -q .github/workflows
+            git commit -q -m "chore(vantt): drop upstream workflows from release branch"
+          fi
+
       - name: Push release branch to origin
         if: steps.catchup.outputs.catchup_status == 'success'
         run: |
@@ -123,6 +134,7 @@ jobs:
             gh release upload "$TAG" dist/* --repo vantt/herdr --clobber
           else
             gh release create "$TAG" \
+              --target "${{ steps.info.outputs.branch }}" \
               dist/herdr-linux-x86_64.tar.gz \
               dist/herdr-linux-x86_64.tar.gz.sha256 \
               --repo vantt/herdr \
@@ -131,13 +143,13 @@ jobs:
               --latest
           fi
 
-      - name: Report Conflict as Issue if Failed
-        if: failure() && steps.catchup.outputs.catchup_status == 'failure'
+      - name: Report Failure as Issue
+        if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TITLE="[Catchup Alert] Upstream release catchup encountered conflicts"
-          BODY="Automated catchup run failed. A patch in series.toml could not be applied cleanly against the latest upstream release. Please inspect the workflow run logs and resolve conflicts."
+          TITLE="[Catchup Alert] Upstream release catchup failed"
+          BODY="Automated catchup run failed (patch conflict, build error, push or release step). Inspect the logs and fix: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           
           # Check if an open issue with same title already exists
           EXISTING="$(gh issue list --repo vantt/herdr --search "$TITLE" --state open --json number --jq '.[0].number')"
