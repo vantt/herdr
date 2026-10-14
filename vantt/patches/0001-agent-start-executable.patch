@@ -1,0 +1,145 @@
+diff --git a/src/api/schema/agents.rs b/src/api/schema/agents.rs
+index ee496d5d..cc6788e9 100644
+--- a/src/api/schema/agents.rs
++++ b/src/api/schema/agents.rs
+@@ -168,6 +168,8 @@ pub struct AgentStartParams {
+     pub name: String,
+     pub kind: String,
+     pub pane_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub executable: Option<String>,
+     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+     pub args: Vec<String>,
+     /// Startup timeout in milliseconds. Values must be greater than 3000 and at most 300000.
+diff --git a/src/api/schema/tests.rs b/src/api/schema/tests.rs
+index d51c565d..58ac1771 100644
+--- a/src/api/schema/tests.rs
++++ b/src/api/schema/tests.rs
+@@ -98,6 +98,7 @@ fn agent_start_and_prompt_requests_round_trip() {
+             name: "reviewer".into(),
+             kind: "pi".into(),
+             pane_id: "w1:p2".into(),
++            executable: None,
+             args: vec!["--no-session".into()],
+             timeout_ms: Some(30_000),
+         }),
+diff --git a/src/app/agents.rs b/src/app/agents.rs
+index 5033505d..9c3fc893 100644
+--- a/src/app/agents.rs
++++ b/src/app/agents.rs
+@@ -194,7 +194,10 @@ impl App {
+         let shell_name = available_shell_name(runtime)
+             .ok_or_else(|| AgentStartError::TargetBusy(params.pane_id.clone()))?;
+ 
+-        let mut argv = vec![crate::detect::interactive_agent_executable(kind).to_string()];
++        let executable = params
++            .executable
++            .unwrap_or_else(|| crate::detect::interactive_agent_executable(kind).to_string());
++        let mut argv = vec![executable];
+         argv.extend(params.args);
+         let command = crate::platform::interactive_shell_command(&argv, &shell_name)
+             .ok_or(AgentStartError::InvalidArgument)?;
+diff --git a/src/app/mod.rs b/src/app/mod.rs
+index 757a7f66..6f7880f6 100644
+--- a/src/app/mod.rs
++++ b/src/app/mod.rs
+@@ -2798,6 +2798,7 @@ mod tests {
+                 name: "worker".into(),
+                 kind: "pi".into(),
+                 pane_id,
++                executable: None,
+                 args: Vec::new(),
+                 timeout_ms: Some(1_000),
+             }),
+@@ -2840,6 +2841,7 @@ mod tests {
+                 name: "worker".into(),
+                 kind: "codex".into(),
+                 pane_id: pane_id.clone(),
++                executable: None,
+                 args: vec!["resume".into(), "codex-session".into()],
+                 timeout_ms: Some(4_000),
+             }),
+diff --git a/src/cli/agent.rs b/src/cli/agent.rs
+index 1af3e0d6..008361fb 100644
+--- a/src/cli/agent.rs
++++ b/src/cli/agent.rs
+@@ -296,6 +296,7 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
+         .position(|arg| arg == "--")
+         .unwrap_or(args.len());
+     let mut kind = None;
++    let mut executable = None;
+     let mut pane_id = None;
+     let mut timeout_ms = None;
+     let mut index = 1;
+@@ -309,6 +310,14 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
+                 kind = Some(value.clone());
+                 index += 2;
+             }
++            "--executable" => {
++                let Some(value) = args.get(index + 1).filter(|_| index + 1 < separator) else {
++                    eprintln!("missing value for --executable");
++                    return Ok(2);
++                };
++                executable = Some(value.clone());
++                index += 2;
++            }
+             "--pane" => {
+                 let Some(value) = args.get(index + 1).filter(|_| index + 1 < separator) else {
+                     eprintln!("missing value for --pane");
+@@ -375,6 +384,7 @@ fn agent_start(args: &[String]) -> std::io::Result<i32> {
+                 name: name.clone(),
+                 kind: kind.clone(),
+                 pane_id: pane_id.clone(),
++                executable: executable.clone(),
+                 args: agent_args.clone(),
+                 timeout_ms,
+             }),
+@@ -935,7 +945,7 @@ fn print_agent_help() {
+     eprintln!("  herdr agent wait <target> [--until STATUS]... [--timeout MS]");
+     eprintln!("  herdr agent attach <target> [--takeover]");
+     eprintln!(
+-        "  herdr agent start <name> --kind KIND --pane ID [--timeout MS] [-- <agent-args...>]"
++        "  herdr agent start <name> --kind KIND --pane ID [--executable PATH] [--timeout MS] [-- <agent-args...>]"
+     );
+     eprintln!("  herdr agent explain <target> [--json|--format text|json] [--verbose]");
+     eprintln!(
+@@ -951,3 +961,24 @@ fn parse_timeout(value: &str) -> Result<u64, i32> {
+         2
+     })
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn agent_start_missing_executable_value_fails() {
++        let args = vec![
++            "start".into(),
++            "worker".into(),
++            "--kind".into(),
++            "claude".into(),
++            "--pane".into(),
++            "1".into(),
++            "--executable".into(),
++        ];
++        let exit_code = agent_start(&args).unwrap();
++        assert_eq!(exit_code, 2);
++    }
++}
++
+diff --git a/src/cli/spec.rs b/src/cli/spec.rs
+index 9465dcc3..7ccf0dc0 100644
+--- a/src/cli/spec.rs
++++ b/src/cli/spec.rs
+@@ -417,6 +417,10 @@ fn agent_command() -> Command {
+                         .required(true)
+                         .help("Existing pane at an interactive shell prompt"),
+                 )
++                .arg(
++                    option("executable", "PATH")
++                        .help("Custom executable path to launch instead of canonical binary"),
++                )
+                 .arg(
+                     option("timeout", "MS")
+                         .help("Wait for interactive readiness (default: 30000; max: 300000)"),
